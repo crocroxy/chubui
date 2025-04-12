@@ -281,11 +281,6 @@ function library:Window(WindowArgs)
                 })
             })
             
-            -- Update Section Size
-            Section.Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                Section.Size = UDim2.new(1, -16, 0, Section.Container.UIListLayout.AbsoluteContentSize.Y + 36)
-            end)
-            
             -- Toggle Function
             function SectionTable:Toggle(Info)
                 Info.Text = Info.Text or "Toggle"
@@ -326,7 +321,6 @@ function library:Window(WindowArgs)
                     })
                 })
                 
-                -- Toggle Logic
                 Toggle.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 then
                         library.flags[Info.Flag] = not library.flags[Info.Flag]
@@ -402,7 +396,6 @@ function library:Window(WindowArgs)
                     })
                 })
                 
-                -- Slider Logic
                 local Dragging = false
                 
                 Slider.Bar.InputBegan:Connect(function(input)
@@ -486,7 +479,6 @@ function library:Window(WindowArgs)
                     })
                 })
                 
-                -- Dropdown Logic
                 local Open = false
                 
                 local function Toggle()
@@ -501,7 +493,6 @@ function library:Window(WindowArgs)
                     end
                 end)
                 
-                -- Add Options
                 for _, Option in pairs(Info.List) do
                     local Button = Utilities:Create("TextButton", {
                         Name = Option,
@@ -527,7 +518,6 @@ function library:Window(WindowArgs)
                     end)
                 end
                 
-                -- Update Dropdown Function
                 function Dropdown:UpdateDropdown(UpdateInfo)
                     UpdateInfo = typeof(UpdateInfo) == "table" and UpdateInfo or {}
                     UpdateInfo.List = UpdateInfo.List or {}
@@ -599,6 +589,11 @@ function library:Window(WindowArgs)
                 
                 return Button
             end
+            
+            -- Update Section Size
+            Section.Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                Section.Size = UDim2.new(1, -16, 0, Section.Container.UIListLayout.AbsoluteContentSize.Y + 36)
+            end)
             
             return SectionTable
         end
