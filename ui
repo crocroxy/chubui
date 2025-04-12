@@ -1,0 +1,349 @@
+-- Simple UI Library
+local Library = {}
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Mouse = game:GetService("Players").LocalPlayer:GetMouse()
+
+Library.Flags = {}
+local Flags = Library.Flags
+
+-- Colors
+local Colors = {
+    Primary = Color3.fromRGB(27, 25, 27),
+    Secondary = Color3.fromRGB(42, 40, 42),
+    Tertiary = Color3.fromRGB(74, 73, 74),
+    Divider = Color3.fromRGB(46, 45, 46),
+    Text = Color3.fromRGB(211, 211, 211),
+    Accent = Color3.fromRGB(100, 190, 31)
+}
+
+-- Utility Functions
+local function Create(class, properties, children)
+    local instance = Instance.new(class)
+    
+    for property, value in pairs(properties or {}) do
+        instance[property] = value
+    end
+    
+    for _, child in pairs(children or {}) do
+        child.Parent = instance
+    end
+    
+    return instance
+end
+
+local function Tween(instance, time, properties)
+    local tween = TweenService:Create(instance, TweenInfo.new(time), properties)
+    tween:Play()
+    return tween
+end
+
+function Library:Window(title)
+    local Window = {}
+    
+    -- Create Main GUI
+    local ScreenGui = Create("ScreenGui", {
+        Name = "SimpleUI",
+        Parent = CoreGui,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global
+    })
+    
+    local Main = Create("Frame", {
+        Name = "Main",
+        Size = UDim2.new(0, 600, 0, 400),
+        Position = UDim2.new(0.5, -300, 0.5, -200),
+        BackgroundColor3 = Colors.Primary,
+        ClipsDescendants = true,
+        Parent = ScreenGui
+    }, {
+        Create("UICorner", {CornerRadius = UDim.new(0, 6)}),
+        Create("TextLabel", {
+            Name = "Title",
+            Size = UDim2.new(1, -10, 0, 30),
+            Position = UDim2.new(0, 5, 0, 0),
+            BackgroundTransparency = 1,
+            Text = title or "Window",
+            TextColor3 = Colors.Text,
+            TextSize = 14,
+            Font = Enum.Font.SourceSansBold,
+            TextXAlignment = Enum.TextXAlignment.Left
+        })
+    })
+    
+    -- Make window draggable
+    local dragging
+    local dragInput
+    local dragStart
+    local startPos
+    
+    local function update(input)
+        local delta = input.Position - dragStart
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+    
+    Main.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    Main.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+    
+    -- Tabs
+    local TabHolder = Create("Frame", {
+        Name = "TabHolder",
+        Size = UDim2.new(0, 150, 1, -30),
+        Position = UDim2.new(0, 0, 0, 30),
+        BackgroundColor3 = Colors.Secondary,
+        Parent = Main
+    }, {
+        Create("UIListLayout", {
+            Padding = UDim.new(0, 2),
+            SortOrder = Enum.SortOrder.LayoutOrder
+        })
+    })
+    
+    local TabContent = Create("Frame", {
+        Name = "TabContent",
+        Size = UDim2.new(1, -160, 1, -40),
+        Position = UDim2.new(0, 155, 0, 35),
+        BackgroundColor3 = Colors.Secondary,
+        Parent = Main
+    }, {
+        Create("UICorner", {CornerRadius = UDim.new(0, 6)})
+    })
+    
+    function Window:Tab(name)
+        local Tab = {}
+        
+        local TabButton = Create("TextButton", {
+            Name = name,
+            Size = UDim2.new(1, -4, 0, 30),
+            BackgroundColor3 = Colors.Tertiary,
+            Text = name,
+            TextColor3 = Colors.Text,
+            TextSize = 14,
+            Font = Enum.Font.SourceSansBold,
+            Parent = TabHolder
+        }, {
+            Create("UICorner", {CornerRadius = UDim.new(0, 6)})
+        })
+        
+        local Container = Create("ScrollingFrame", {
+            Name = name.."Container",
+            Size = UDim2.new(1, -10, 1, -10),
+            Position = UDim2.new(0, 5, 0, 5),
+            BackgroundTransparency = 1,
+            ScrollBarThickness = 2,
+            Visible = false,
+            Parent = TabContent
+        }, {
+            Create("UIListLayout", {
+                Padding = UDim.new(0, 5),
+                SortOrder = Enum.SortOrder.LayoutOrder
+            })
+        })
+        
+        TabButton.MouseButton1Click:Connect(function()
+            for _, v in pairs(TabContent:GetChildren()) do
+                if v:IsA("ScrollingFrame") then
+                    v.Visible = false
+                end
+            end
+            Container.Visible = true
+            
+            for _, v in pairs(TabHolder:GetChildren()) do
+                if v:IsA("TextButton") then
+                    Tween(v, 0.2, {BackgroundColor3 = Colors.Tertiary})
+                end
+            end
+            Tween(TabButton, 0.2, {BackgroundColor3 = Colors.Accent})
+        end)
+        
+        function Tab:Button(text, callback)
+            local Button = Create("TextButton", {
+                Name = "Button",
+                Size = UDim2.new(1, 0, 0, 30),
+                BackgroundColor3 = Colors.Tertiary,
+                Text = text,
+                TextColor3 = Colors.Text,
+                TextSize = 14,
+                Font = Enum.Font.SourceSansBold,
+                Parent = Container
+            }, {
+                Create("UICorner", {CornerRadius = UDim.new(0, 6)})
+            })
+            
+            Button.MouseButton1Click:Connect(callback or function() end)
+            return Button
+        end
+        
+        function Tab:Toggle(text, default, flag, callback)
+            local Toggle = Create("Frame", {
+                Name = "Toggle",
+                Size = UDim2.new(1, 0, 0, 30),
+                BackgroundColor3 = Colors.Tertiary,
+                Parent = Container
+            }, {
+                Create("UICorner", {CornerRadius = UDim.new(0, 6)}),
+                Create("TextLabel", {
+                    Size = UDim2.new(1, -50, 1, 0),
+                    Position = UDim2.new(0, 10, 0, 0),
+                    BackgroundTransparency = 1,
+                    Text = text,
+                    TextColor3 = Colors.Text,
+                    TextSize = 14,
+                    Font = Enum.Font.SourceSansBold,
+                    TextXAlignment = Enum.TextXAlignment.Left
+                })
+            })
+            
+            local Switch = Create("Frame", {
+                Name = "Switch",
+                Size = UDim2.new(0, 20, 0, 20),
+                Position = UDim2.new(1, -30, 0.5, -10),
+                BackgroundColor3 = default and Colors.Accent or Colors.Primary,
+                Parent = Toggle
+            }, {
+                Create("UICorner", {CornerRadius = UDim.new(1, 0)})
+            })
+            
+            local Enabled = default or false
+            if flag then
+                Library.Flags[flag] = Enabled
+            end
+            
+            Toggle.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    Enabled = not Enabled
+                    if flag then
+                        Library.Flags[flag] = Enabled
+                    end
+                    Tween(Switch, 0.2, {BackgroundColor3 = Enabled and Colors.Accent or Colors.Primary})
+                    callback(Enabled)
+                end
+            end)
+            
+            return Toggle
+        end
+        
+        function Tab:Slider(text, min, max, default, flag, callback)
+            local Slider = Create("Frame", {
+                Name = "Slider",
+                Size = UDim2.new(1, 0, 0, 50),
+                BackgroundColor3 = Colors.Tertiary,
+                Parent = Container
+            }, {
+                Create("UICorner", {CornerRadius = UDim.new(0, 6)}),
+                Create("TextLabel", {
+                    Size = UDim2.new(1, -20, 0, 20),
+                    Position = UDim2.new(0, 10, 0, 5),
+                    BackgroundTransparency = 1,
+                    Text = text,
+                    TextColor3 = Colors.Text,
+                    TextSize = 14,
+                    Font = Enum.Font.SourceSansBold,
+                    TextXAlignment = Enum.TextXAlignment.Left
+                })
+            })
+            
+            local SliderBar = Create("Frame", {
+                Name = "SliderBar",
+                Size = UDim2.new(1, -20, 0, 4),
+                Position = UDim2.new(0, 10, 0, 35),
+                BackgroundColor3 = Colors.Primary,
+                Parent = Slider
+            }, {
+                Create("UICorner", {CornerRadius = UDim.new(1, 0)})
+            })
+            
+            local SliderFill = Create("Frame", {
+                Name = "SliderFill",
+                Size = UDim2.new((default - min)/(max - min), 0, 1, 0),
+                BackgroundColor3 = Colors.Accent,
+                Parent = SliderBar
+            }, {
+                Create("UICorner", {CornerRadius = UDim.new(1, 0)})
+            })
+            
+            local Value = Create("TextLabel", {
+                Size = UDim2.new(0, 50, 0, 20),
+                Position = UDim2.new(1, -60, 0, 5),
+                BackgroundTransparency = 1,
+                Text = tostring(default),
+                TextColor3 = Colors.Text,
+                TextSize = 14,
+                Font = Enum.Font.SourceSansBold,
+                Parent = Slider
+            })
+            
+            if flag then
+                Library.Flags[flag] = default
+            end
+            
+            local function update(input)
+                local pos = UDim2.new(math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1), 0, 1, 0)
+                SliderFill.Size = pos
+                local value = math.floor(min + (max - min) * pos.X.Scale)
+                Value.Text = tostring(value)
+                if flag then
+                    Library.Flags[flag] = value
+                end
+                callback(value)
+            end
+            
+            SliderBar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local connection
+                    connection = UserInputService.InputChanged:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseMovement then
+                            update(input)
+                        end
+                    end)
+                    
+                    UserInputService.InputEnded:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                            connection:Disconnect()
+                        end
+                    end)
+                    
+                    update(input)
+                end
+            end)
+            
+            return Slider
+        end
+        
+        return Tab
+    end
+    
+    -- Toggle UI with Left Alt
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if input.KeyCode == Enum.KeyCode.LeftAlt and not gameProcessed then
+            Main.Visible = not Main.Visible
+        end
+    end)
+    
+    return Window
+end
+
+return Library 
