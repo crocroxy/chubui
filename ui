@@ -1,7 +1,9 @@
 local library = {
     flags = {},
     tabs = 0,
-    selectedTab = nil
+    selectedTab = nil,
+    toggled = true,
+    toggleKeybind = Enum.KeyCode.RightShift -- Default toggle key
 }
 
 library.Flags = library.flags
@@ -105,7 +107,8 @@ end
 function library:Window(title)
     local window = Utilities:Create("ScreenGui", {
         Name = "ModernUI",
-        Parent = game:GetService("CoreGui")
+        Parent = game:GetService("CoreGui"),
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     })
     
     local main = Utilities:Create("Frame", {
@@ -114,7 +117,8 @@ function library:Window(title)
         Position = UDim2.new(0.5, -300, 0.5, -200),
         BackgroundColor3 = Colors.Primary,
         BorderSizePixel = 0,
-        Parent = window
+        Parent = window,
+        ZIndex = 1
     })
     
     -- Add shadow
@@ -142,7 +146,8 @@ function library:Window(title)
         Size = UDim2.new(1, 0, 0, 40),
         BackgroundColor3 = Colors.Secondary,
         BorderSizePixel = 0,
-        Parent = main
+        Parent = main,
+        ZIndex = 2
     })
     
     Utilities:Create("UICorner", {
@@ -162,6 +167,41 @@ function library:Window(title)
         Parent = titleBar
     })
     
+    -- Make window draggable
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+    
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = main.Position
+        end
+    end)
+    
+    titleBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    -- Toggle GUI with keybind
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == library.toggleKeybind then
+            library.toggled = not library.toggled
+            main.Visible = library.toggled
+        end
+    end)
+    
     -- Tab container
     local tabContainer = Utilities:Create("ScrollingFrame", {
         Name = "TabButtons",
@@ -169,7 +209,8 @@ function library:Window(title)
         Position = UDim2.new(0, 10, 0, 45),
         BackgroundTransparency = 1,
         ScrollBarThickness = 0,
-        Parent = main
+        Parent = main,
+        ZIndex = 2
     })
     
     Utilities:Create("UIListLayout", {
@@ -184,13 +225,15 @@ function library:Window(title)
         Size = UDim2.new(1, -170, 1, -50),
         Position = UDim2.new(0, 160, 0, 45),
         BackgroundTransparency = 1,
-        Parent = main
+        Parent = main,
+        ZIndex = 2
     })
     
     local window_obj = {}
     window_obj.contentContainer = contentContainer
     window_obj.tabContainer = tabContainer
     window_obj.Main = main
+    window_obj.ScreenGui = window
     
     function window_obj:Tab(name)
         library.tabs = library.tabs + 1
@@ -269,6 +312,14 @@ function library:Window(title)
             
             library.selectedTab = tabContent
             tabContent.Visible = true
+            
+            -- Hide all other tabs
+            for _, otherTab in ipairs(self.contentContainer:GetChildren()) do
+                if otherTab:IsA("ScrollingFrame") and otherTab ~= tabContent then
+                    otherTab.Visible = false
+                end
+            end
+            
             Utilities:Tween(tabButton, 0.2, {BackgroundColor3 = Colors.Accent})
             tabText.TextColor3 = Colors.Text
         end)
@@ -554,7 +605,8 @@ function library:Window(title)
                     Name = name,
                     Size = UDim2.new(1, 0, 0, 32),
                     BackgroundColor3 = Colors.Tertiary,
-                    Parent = container
+                    Parent = container,
+                    ZIndex = 3
                 })
                 
                 Utilities:Create("UICorner", {
@@ -588,7 +640,8 @@ function library:Window(title)
                     Position = UDim2.new(0, 0, 1, 5),
                     BackgroundColor3 = Colors.Tertiary,
                     Visible = false,
-                    Parent = dropdown
+                    Parent = window_obj.ScreenGui, -- Parent to ScreenGui instead of dropdown
+                    ZIndex = 100 -- Ensure it's always on top
                 })
                 
                 Utilities:Create("UICorner", {
@@ -644,6 +697,16 @@ function library:Window(title)
                 -- Update option container size
                 optionContainer.Size = UDim2.new(1, 0, 0, (#options * 35) - 5)
                 
+                -- Update option container position when dropdown moves
+                RunService.RenderStepped:Connect(function()
+                    if optionContainer.Visible then
+                        local dropdownPosition = dropdown.AbsolutePosition
+                        local dropdownSize = dropdown.AbsoluteSize
+                        optionContainer.Position = UDim2.new(0, dropdownPosition.X, 0, dropdownPosition.Y + dropdownSize.Y + 5)
+                        optionContainer.Size = UDim2.new(0, dropdownSize.X, 0, (#options * 35) - 5)
+                    end
+                end)
+                
                 -- Dropdown toggle
                 dropdown.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -663,10 +726,32 @@ function library:Window(title)
                     Utilities:Tween(dropdown, 0.2, {BackgroundColor3 = Colors.Tertiary})
                 end)
                 
+                -- Close dropdown when clicking outside
+                UserInputService.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local mousePosition = Vector2.new(input.Position.X, input.Position.Y)
+                        if not (dropdown.AbsolutePosition.X <= mousePosition.X and 
+                               mousePosition.X <= dropdown.AbsolutePosition.X + dropdown.AbsoluteSize.X and
+                               dropdown.AbsolutePosition.Y <= mousePosition.Y and
+                               mousePosition.Y <= dropdown.AbsolutePosition.Y + dropdown.AbsoluteSize.Y) and
+                           not (optionContainer.AbsolutePosition.X <= mousePosition.X and
+                               mousePosition.X <= optionContainer.AbsolutePosition.X + optionContainer.AbsoluteSize.X and
+                               optionContainer.AbsolutePosition.Y <= mousePosition.Y and
+                               mousePosition.Y <= optionContainer.AbsolutePosition.Y + optionContainer.AbsoluteSize.Y) then
+                            optionContainer.Visible = false
+                            Utilities:Tween(arrow, 0.2, {Rotation = 0})
+                        end
+                    end
+                end)
+                
                 return dropdown
             end
             
             return section
+        end
+        
+        if library.tabs == 1 then
+            library.selectedTab = tabContent
         end
         
         return tab
