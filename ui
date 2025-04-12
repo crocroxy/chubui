@@ -98,7 +98,9 @@ end
 
 -- Window Creation Function
 function library:Window(WindowArgs)
+    WindowArgs = typeof(WindowArgs) == "table" and WindowArgs or {}
     WindowArgs.Text = WindowArgs.Text or "Window"
+    
     local WindowTable = {}
     WindowTable.__index = WindowTable
     self.Tabs = 0
@@ -108,15 +110,19 @@ function library:Window(WindowArgs)
     -- Create Main GUI
     local Window = Utilities:Create("ScreenGui", {
         Name = "PPHUD",
-        ZIndexBehavior = Enum.ZIndexBehavior.Global
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+        Parent = CoreGui
     }, {
         Utilities:Create("Frame", {
             Name = "Main",
             Size = UDim2.new(0, 600, 0, 400),
+            Position = UDim2.new(0.5, -300, 0.5, -200),
             BackgroundColor3 = Colors.Primary,
-            ClipsDescendants = true,
-            Position = UDim2.new(0, 600, 0, 270)
+            ClipsDescendants = true
         }, {
+            Utilities:Create("UICorner", {
+                CornerRadius = UDim.new(0, 6)
+            }),
             Utilities:Create("UIGradient", {
                 Color = ColorSequence.new({
                     ColorSequenceKeypoint.new(0, Color3.fromRGB(27, 25, 27)),
@@ -125,11 +131,23 @@ function library:Window(WindowArgs)
                 Offset = Vector2.new(0, 0.65),
                 Rotation = 90
             }),
+            -- Add Title
+            Utilities:Create("TextLabel", {
+                Name = "Title",
+                Text = WindowArgs.Text,
+                Size = UDim2.new(1, -10, 0, 30),
+                Position = UDim2.new(0, 10, 0, 0),
+                BackgroundTransparency = 1,
+                TextColor3 = Colors.PrimaryText,
+                TextSize = 14,
+                Font = Enum.Font.GothamBold,
+                TextXAlignment = Enum.TextXAlignment.Left
+            }),
             -- Add TabHolder
             Utilities:Create("Frame", {
                 Name = "TabHolder",
-                Size = UDim2.new(0, 130, 1, -8),
-                Position = UDim2.new(0, 6, 0, 8),
+                Size = UDim2.new(0, 130, 1, -40),
+                Position = UDim2.new(0, 6, 0, 36),
                 BackgroundTransparency = 1
             }, {
                 Utilities:Create("UIListLayout", {
@@ -140,14 +158,16 @@ function library:Window(WindowArgs)
             -- Add ContainerHolder
             Utilities:Create("Frame", {
                 Name = "ContainerHolder",
-                Size = UDim2.new(1, -142, 1, 0),
-                Position = UDim2.new(0, 142, 0, 0),
+                Size = UDim2.new(1, -142, 1, -40),
+                Position = UDim2.new(0, 142, 0, 36),
                 BackgroundTransparency = 1
             })
         })
     })
 
-    -- Store references to holders
+    -- Store references
+    WindowTable.Window = Window
+    WindowTable.Main = Window.Main
     WindowTable.TabHolder = Window.Main.TabHolder
     WindowTable.ContainerHolder = Window.Main.ContainerHolder
 
@@ -157,15 +177,15 @@ function library:Window(WindowArgs)
     local dragStart
     local startPos
 
-    Window.Main.InputBegan:Connect(function(input)
+    WindowTable.Main.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
-            startPos = Window.Main.Position
+            startPos = WindowTable.Main.Position
         end
     end)
 
-    Window.Main.InputEnded:Connect(function(input)
+    WindowTable.Main.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
@@ -174,15 +194,13 @@ function library:Window(WindowArgs)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStart
-            Window.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            WindowTable.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 
-    -- Add window to CoreGui
-    Window.Parent = CoreGui
-
-    -- Add to the Window function after creating the main GUI
+    -- Tab Creation Function
     function WindowTable:Tab(TabArgs)
+        TabArgs = typeof(TabArgs) == "table" and TabArgs or {}
         TabArgs.Text = TabArgs.Text or "Tab"
         local TabTable = {}
         
@@ -214,19 +232,33 @@ function library:Window(WindowArgs)
         -- Create Tab Container
         local TabContainer = Utilities:Create("ScrollingFrame", {
             Name = "Container",
-            Size = UDim2.new(1, -142, 1, -8),
-            Position = UDim2.new(0, 142, 0, 8),
+            Size = UDim2.new(1, 0, 1, 0),
             BackgroundTransparency = 1,
             ScrollBarImageColor3 = Colors.Accent,
             ScrollBarThickness = 3,
+            BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar,
             Visible = self.Tabs == 1,
             Parent = self.ContainerHolder
         }, {
+            Utilities:Create("UIPadding", {
+                PaddingLeft = UDim.new(0, 6),
+                PaddingRight = UDim.new(0, 6),
+                PaddingTop = UDim.new(0, 6),
+                PaddingBottom = UDim.new(0, 6)
+            }),
             Utilities:Create("UIListLayout", {
                 SortOrder = Enum.SortOrder.LayoutOrder,
                 Padding = UDim.new(0, 6)
             })
         })
+
+        -- Update Canvas Size
+        TabContainer.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabContainer.UIListLayout.AbsoluteContentSize.Y)
+        end)
         
         -- Tab Selection Logic
         TabButton.MouseButton1Click:Connect(function()
@@ -234,7 +266,11 @@ function library:Window(WindowArgs)
             
             if SelectedTab then
                 SelectedTab.Visible = false
-                Utilities:Tween(TabButton, 0.2, {BackgroundColor3 = Colors.Secondary})
+                for _, Button in pairs(self.TabHolder:GetChildren()) do
+                    if Button:IsA("TextButton") then
+                        Utilities:Tween(Button, 0.2, {BackgroundColor3 = Colors.Secondary})
+                    end
+                end
             end
             
             SelectedTab = TabContainer
