@@ -429,6 +429,139 @@ function Library:Window(title)
             end)
         end
         
+        function Tab:Dropdown(text, options, default, flag, callback)
+            Library.Flags[flag] = default
+            
+            local DropdownFrame = Instance.new("Frame")
+            DropdownFrame.Name = "Dropdown"
+            DropdownFrame.Size = UDim2.new(1, 0, 0, 35)
+            DropdownFrame.BackgroundColor3 = Library.Theme.LightContrast
+            DropdownFrame.BorderSizePixel = 0
+            DropdownFrame.Parent = TabContent
+            
+            local DropdownCorner = Instance.new("UICorner")
+            DropdownCorner.CornerRadius = UDim.new(0, 5)
+            DropdownCorner.Parent = DropdownFrame
+            
+            local DropdownLabel = Instance.new("TextLabel")
+            DropdownLabel.Name = "Label"
+            DropdownLabel.Size = UDim2.new(0.5, -5, 1, 0)
+            DropdownLabel.BackgroundTransparency = 1
+            DropdownLabel.Text = text
+            DropdownLabel.TextColor3 = Library.Theme.TextColor
+            DropdownLabel.TextSize = 14
+            DropdownLabel.Font = Enum.Font.Gotham
+            DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+            DropdownLabel.Parent = DropdownFrame
+            
+            local DropdownButton = Instance.new("TextButton")
+            DropdownButton.Name = "Button"
+            DropdownButton.Size = UDim2.new(0.5, -5, 0, 25)
+            DropdownButton.Position = UDim2.new(0.5, 5, 0.5, -12.5)
+            DropdownButton.BackgroundColor3 = Library.Theme.DarkContrast
+            DropdownButton.BorderSizePixel = 0
+            DropdownButton.Text = default
+            DropdownButton.TextColor3 = Library.Theme.TextColor
+            DropdownButton.TextSize = 14
+            DropdownButton.Font = Enum.Font.Gotham
+            DropdownButton.Parent = DropdownFrame
+            
+            local DropdownButtonCorner = Instance.new("UICorner")
+            DropdownButtonCorner.CornerRadius = UDim.new(0, 5)
+            DropdownButtonCorner.Parent = DropdownButton
+            
+            local DropdownList = Instance.new("Frame")
+            DropdownList.Name = "List"
+            DropdownList.Size = UDim2.new(0.5, -5, 0, 0)
+            DropdownList.Position = UDim2.new(0.5, 5, 1, 5)
+            DropdownList.BackgroundColor3 = Library.Theme.DarkContrast
+            DropdownList.BorderSizePixel = 0
+            DropdownList.ClipsDescendants = true
+            DropdownList.Visible = false
+            DropdownList.ZIndex = 2
+            DropdownList.Parent = DropdownFrame
+            
+            local DropdownListCorner = Instance.new("UICorner")
+            DropdownListCorner.CornerRadius = UDim.new(0, 5)
+            DropdownListCorner.Parent = DropdownList
+            
+            local DropdownListLayout = Instance.new("UIListLayout")
+            DropdownListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            DropdownListLayout.Padding = UDim.new(0, 5)
+            DropdownListLayout.Parent = DropdownList
+            
+            local DropdownListPadding = Instance.new("UIPadding")
+            DropdownListPadding.PaddingTop = UDim.new(0, 5)
+            DropdownListPadding.PaddingBottom = UDim.new(0, 5)
+            DropdownListPadding.Parent = DropdownList
+            
+            local function updateList(newOptions)
+                -- Clear existing options
+                for _, child in pairs(DropdownList:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        child:Destroy()
+                    end
+                end
+                
+                -- Add new options
+                for _, option in pairs(newOptions) do
+                    local OptionButton = Instance.new("TextButton")
+                    OptionButton.Name = option
+                    OptionButton.Size = UDim2.new(1, -10, 0, 25)
+                    OptionButton.Position = UDim2.new(0, 5, 0, 0)
+                    OptionButton.BackgroundColor3 = Library.Theme.LightContrast
+                    OptionButton.BorderSizePixel = 0
+                    OptionButton.Text = option
+                    OptionButton.TextColor3 = Library.Theme.TextColor
+                    OptionButton.TextSize = 14
+                    OptionButton.Font = Enum.Font.Gotham
+                    OptionButton.ZIndex = 2
+                    OptionButton.Parent = DropdownList
+                    
+                    local OptionButtonCorner = Instance.new("UICorner")
+                    OptionButtonCorner.CornerRadius = UDim.new(0, 5)
+                    OptionButtonCorner.Parent = OptionButton
+                    
+                    OptionButton.MouseButton1Click:Connect(function()
+                        Library.Flags[flag] = option
+                        DropdownButton.Text = option
+                        DropdownList.Visible = false
+                        callback(option)
+                    end)
+                end
+                
+                -- Update list size
+                DropdownList.Size = UDim2.new(0.5, -5, 0, #newOptions * 30 + 10)
+            end
+            
+            updateList(options)
+            
+            DropdownButton.MouseButton1Click:Connect(function()
+                DropdownList.Visible = not DropdownList.Visible
+            end)
+            
+            -- Close dropdown when clicking outside
+            UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    if not DropdownFrame.AbsolutePosition.Y <= mousePos.Y and mousePos.Y <= DropdownFrame.AbsolutePosition.Y + DropdownFrame.AbsoluteSize.Y then
+                        DropdownList.Visible = false
+                    end
+                end
+            end)
+            
+            function Tab:UpdateDropdown(flag, newOptions, newValue)
+                if Library.Flags[flag] then
+                    updateList(newOptions)
+                    if newValue then
+                        Library.Flags[flag] = newValue
+                        DropdownButton.Text = newValue
+                        callback(newValue)
+                    end
+                end
+            end
+        end
+        
         return Tab
     end
     
