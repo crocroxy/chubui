@@ -286,6 +286,320 @@ function library:Window(WindowArgs)
                 Section.Size = UDim2.new(1, -16, 0, Section.Container.UIListLayout.AbsoluteContentSize.Y + 36)
             end)
             
+            -- Toggle Function
+            function SectionTable:Toggle(Info)
+                Info.Text = Info.Text or "Toggle"
+                Info.Flag = Info.Flag or Info.Text
+                Info.Default = Info.Default or false
+                
+                library.flags[Info.Flag] = Info.Default
+                
+                local Toggle = Utilities:Create("Frame", {
+                    Name = "Toggle",
+                    Size = UDim2.new(1, 0, 0, 32),
+                    BackgroundColor3 = Colors.Secondary,
+                    Parent = Section.Container
+                }, {
+                    Utilities:Create("UICorner", {
+                        CornerRadius = UDim.new(0, 6)
+                    }),
+                    Utilities:Create("TextLabel", {
+                        Name = "Title",
+                        Text = Info.Text,
+                        Size = UDim2.new(1, -50, 1, 0),
+                        Position = UDim2.new(0, 10, 0, 0),
+                        BackgroundTransparency = 1,
+                        TextColor3 = Colors.PrimaryText,
+                        TextSize = 13,
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Left
+                    }),
+                    Utilities:Create("Frame", {
+                        Name = "Indicator",
+                        Size = UDim2.new(0, 20, 0, 20),
+                        Position = UDim2.new(1, -30, 0.5, -10),
+                        BackgroundColor3 = Info.Default and Colors.Accent or Colors.Tertiary
+                    }, {
+                        Utilities:Create("UICorner", {
+                            CornerRadius = UDim.new(0, 6)
+                        })
+                    })
+                })
+                
+                -- Toggle Logic
+                Toggle.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        library.flags[Info.Flag] = not library.flags[Info.Flag]
+                        Utilities:Tween(Toggle.Indicator, 0.2, {BackgroundColor3 = library.flags[Info.Flag] and Colors.Accent or Colors.Tertiary})
+                        if Info.Callback then
+                            Info.Callback(library.flags[Info.Flag])
+                        end
+                    end
+                end)
+                
+                return Toggle
+            end
+            
+            -- Slider Function
+            function SectionTable:Slider(Info)
+                Info.Text = Info.Text or "Slider"
+                Info.Flag = Info.Flag or Info.Text
+                Info.Default = Info.Default or Info.Min
+                Info.Min = Info.Min or 0
+                Info.Max = Info.Max or 100
+                Info.Increment = Info.Increment or 1
+                
+                library.flags[Info.Flag] = Info.Default
+                
+                local Slider = Utilities:Create("Frame", {
+                    Name = "Slider",
+                    Size = UDim2.new(1, 0, 0, 38),
+                    BackgroundColor3 = Colors.Secondary,
+                    Parent = Section.Container
+                }, {
+                    Utilities:Create("UICorner", {
+                        CornerRadius = UDim.new(0, 6)
+                    }),
+                    Utilities:Create("TextLabel", {
+                        Name = "Title",
+                        Text = Info.Text,
+                        Size = UDim2.new(1, -10, 0, 20),
+                        Position = UDim2.new(0, 10, 0, 0),
+                        BackgroundTransparency = 1,
+                        TextColor3 = Colors.PrimaryText,
+                        TextSize = 13,
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Left
+                    }),
+                    Utilities:Create("Frame", {
+                        Name = "Bar",
+                        Size = UDim2.new(1, -20, 0, 4),
+                        Position = UDim2.new(0, 10, 0, 28),
+                        BackgroundColor3 = Colors.Tertiary
+                    }, {
+                        Utilities:Create("UICorner", {
+                            CornerRadius = UDim.new(1, 0)
+                        }),
+                        Utilities:Create("Frame", {
+                            Name = "Fill",
+                            Size = UDim2.new((Info.Default - Info.Min) / (Info.Max - Info.Min), 0, 1, 0),
+                            BackgroundColor3 = Colors.Accent
+                        }, {
+                            Utilities:Create("UICorner", {
+                                CornerRadius = UDim.new(1, 0)
+                            })
+                        })
+                    }),
+                    Utilities:Create("TextBox", {
+                        Name = "Value",
+                        Text = tostring(Info.Default),
+                        Size = UDim2.new(0, 50, 0, 20),
+                        Position = UDim2.new(1, -60, 0, 0),
+                        BackgroundTransparency = 1,
+                        TextColor3 = Colors.PrimaryText,
+                        TextSize = 13,
+                        Font = Enum.Font.GothamBold
+                    })
+                })
+                
+                -- Slider Logic
+                local Dragging = false
+                
+                Slider.Bar.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        Dragging = true
+                    end
+                end)
+                
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        Dragging = false
+                    end
+                end)
+                
+                UserInputService.InputChanged:Connect(function(input)
+                    if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        local X = math.clamp((input.Position.X - Slider.Bar.AbsolutePosition.X) / Slider.Bar.AbsoluteSize.X, 0, 1)
+                        local Value = math.floor((Info.Min + (Info.Max - Info.Min) * X) / Info.Increment + 0.5) * Info.Increment
+                        
+                        library.flags[Info.Flag] = Value
+                        Slider.Bar.Fill.Size = UDim2.new((Value - Info.Min) / (Info.Max - Info.Min), 0, 1, 0)
+                        Slider.Value.Text = tostring(Value)
+                        
+                        if Info.Callback then
+                            Info.Callback(Value)
+                        end
+                    end
+                end)
+                
+                return Slider
+            end
+            
+            -- Dropdown Function
+            function SectionTable:Dropdown(Info)
+                Info.Text = Info.Text or "Dropdown"
+                Info.Flag = Info.Flag or Info.Text
+                Info.Default = Info.Default or ""
+                Info.List = Info.List or {}
+                
+                library.flags[Info.Flag] = Info.Default
+                
+                local Dropdown = Utilities:Create("Frame", {
+                    Name = "Dropdown",
+                    Size = UDim2.new(1, 0, 0, 32),
+                    BackgroundColor3 = Colors.Secondary,
+                    Parent = Section.Container,
+                    ClipsDescendants = true
+                }, {
+                    Utilities:Create("UICorner", {
+                        CornerRadius = UDim.new(0, 6)
+                    }),
+                    Utilities:Create("TextLabel", {
+                        Name = "Title",
+                        Text = Info.Text,
+                        Size = UDim2.new(1, -10, 0, 32),
+                        Position = UDim2.new(0, 10, 0, 0),
+                        BackgroundTransparency = 1,
+                        TextColor3 = Colors.PrimaryText,
+                        TextSize = 13,
+                        Font = Enum.Font.GothamBold,
+                        TextXAlignment = Enum.TextXAlignment.Left
+                    }),
+                    Utilities:Create("ImageLabel", {
+                        Name = "Arrow",
+                        Size = UDim2.new(0, 20, 0, 20),
+                        Position = UDim2.new(1, -25, 0, 6),
+                        BackgroundTransparency = 1,
+                        Image = getcustomasset("PPHUD/Arrow.png"),
+                        ImageColor3 = Colors.PrimaryText
+                    }),
+                    Utilities:Create("Frame", {
+                        Name = "Container",
+                        Size = UDim2.new(1, -16, 0, 0),
+                        Position = UDim2.new(0, 8, 0, 36),
+                        BackgroundTransparency = 1
+                    }, {
+                        Utilities:Create("UIListLayout", {
+                            SortOrder = Enum.SortOrder.LayoutOrder,
+                            Padding = UDim.new(0, 4)
+                        })
+                    })
+                })
+                
+                -- Dropdown Logic
+                local Open = false
+                
+                local function Toggle()
+                    Open = not Open
+                    Utilities:Tween(Dropdown.Arrow, 0.2, {Rotation = Open and 180 or 0})
+                    Utilities:Tween(Dropdown, 0.2, {Size = UDim2.new(1, 0, 0, Open and (38 + Dropdown.Container.UIListLayout.AbsoluteContentSize.Y) or 32)})
+                end
+                
+                Dropdown.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        Toggle()
+                    end
+                end)
+                
+                -- Add Options
+                for _, Option in pairs(Info.List) do
+                    local Button = Utilities:Create("TextButton", {
+                        Name = Option,
+                        Size = UDim2.new(1, 0, 0, 24),
+                        BackgroundColor3 = Colors.Tertiary,
+                        Text = Option,
+                        TextColor3 = Colors.PrimaryText,
+                        TextSize = 13,
+                        Font = Enum.Font.GothamBold,
+                        Parent = Dropdown.Container
+                    }, {
+                        Utilities:Create("UICorner", {
+                            CornerRadius = UDim.new(0, 6)
+                        })
+                    })
+                    
+                    Button.MouseButton1Click:Connect(function()
+                        library.flags[Info.Flag] = Option
+                        Toggle()
+                        if Info.Callback then
+                            Info.Callback(Option)
+                        end
+                    end)
+                end
+                
+                -- Update Dropdown Function
+                function Dropdown:UpdateDropdown(UpdateInfo)
+                    UpdateInfo = typeof(UpdateInfo) == "table" and UpdateInfo or {}
+                    UpdateInfo.List = UpdateInfo.List or {}
+                    UpdateInfo.Value = UpdateInfo.Value or nil
+                    
+                    for _, Child in pairs(Dropdown.Container:GetChildren()) do
+                        if Child:IsA("TextButton") then
+                            Child:Destroy()
+                        end
+                    end
+                    
+                    for _, Option in pairs(UpdateInfo.List) do
+                        local Button = Utilities:Create("TextButton", {
+                            Name = Option,
+                            Size = UDim2.new(1, 0, 0, 24),
+                            BackgroundColor3 = Colors.Tertiary,
+                            Text = Option,
+                            TextColor3 = Colors.PrimaryText,
+                            TextSize = 13,
+                            Font = Enum.Font.GothamBold,
+                            Parent = Dropdown.Container
+                        }, {
+                            Utilities:Create("UICorner", {
+                                CornerRadius = UDim.new(0, 6)
+                            })
+                        })
+                        
+                        Button.MouseButton1Click:Connect(function()
+                            library.flags[Info.Flag] = Option
+                            Toggle()
+                            if Info.Callback then
+                                Info.Callback(Option)
+                            end
+                        end)
+                    end
+                    
+                    if UpdateInfo.Value then
+                        library.flags[Info.Flag] = UpdateInfo.Value
+                    end
+                end
+                
+                return Dropdown
+            end
+            
+            -- Button Function
+            function SectionTable:Button(Info)
+                Info.Text = Info.Text or "Button"
+                
+                local Button = Utilities:Create("TextButton", {
+                    Name = "Button",
+                    Size = UDim2.new(1, 0, 0, 32),
+                    BackgroundColor3 = Colors.Secondary,
+                    Text = Info.Text,
+                    TextColor3 = Colors.PrimaryText,
+                    TextSize = 13,
+                    Font = Enum.Font.GothamBold,
+                    Parent = Section.Container
+                }, {
+                    Utilities:Create("UICorner", {
+                        CornerRadius = UDim.new(0, 6)
+                    })
+                })
+                
+                Button.MouseButton1Click:Connect(function()
+                    if Info.Callback then
+                        Info.Callback()
+                    end
+                end)
+                
+                return Button
+            end
+            
             return SectionTable
         end
         
@@ -298,248 +612,6 @@ function library:Window(WindowArgs)
     end
 
     return WindowTable
-end
-
--- Add to the SectionTable
-function SectionTable:Toggle(Info)
-    Info.Text = Info.Text or "Toggle"
-    Info.Flag = Info.Flag or Info.Text
-    Info.Default = Info.Default or false
-    
-    library.flags[Info.Flag] = Info.Default
-    
-    local Toggle = Utilities:Create("Frame", {
-        Name = "Toggle",
-        Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = Colors.Secondary,
-        Parent = Section.Container
-    }, {
-        Utilities:Create("UICorner", {
-            CornerRadius = UDim.new(0, 6)
-        }),
-        Utilities:Create("TextLabel", {
-            Name = "Title",
-            Text = Info.Text,
-            Size = UDim2.new(1, -50, 1, 0),
-            Position = UDim2.new(0, 10, 0, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = Colors.PrimaryText,
-            TextSize = 13,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Left
-        }),
-        Utilities:Create("Frame", {
-            Name = "Indicator",
-            Size = UDim2.new(0, 20, 0, 20),
-            Position = UDim2.new(1, -30, 0.5, -10),
-            BackgroundColor3 = Info.Default and Colors.Accent or Colors.Tertiary
-        }, {
-            Utilities:Create("UICorner", {
-                CornerRadius = UDim.new(0, 6)
-            })
-        })
-    })
-    
-    -- Toggle Logic
-    Toggle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            library.flags[Info.Flag] = not library.flags[Info.Flag]
-            Utilities:Tween(Toggle.Indicator, 0.2, {BackgroundColor3 = library.flags[Info.Flag] and Colors.Accent or Colors.Tertiary})
-            if Info.Callback then
-                Info.Callback(library.flags[Info.Flag])
-            end
-        end
-    end)
-    
-    return Toggle
-end
-
-function SectionTable:Slider(Info)
-    Info.Text = Info.Text or "Slider"
-    Info.Flag = Info.Flag or Info.Text
-    Info.Default = Info.Default or Info.Min
-    Info.Min = Info.Min or 0
-    Info.Max = Info.Max or 100
-    Info.Increment = Info.Increment or 1
-    
-    library.flags[Info.Flag] = Info.Default
-    
-    local Slider = Utilities:Create("Frame", {
-        Name = "Slider",
-        Size = UDim2.new(1, 0, 0, 38),
-        BackgroundColor3 = Colors.Secondary,
-        Parent = Section.Container
-    }, {
-        Utilities:Create("UICorner", {
-            CornerRadius = UDim.new(0, 6)
-        }),
-        Utilities:Create("TextLabel", {
-            Name = "Title",
-            Text = Info.Text,
-            Size = UDim2.new(1, -10, 0, 20),
-            Position = UDim2.new(0, 10, 0, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = Colors.PrimaryText,
-            TextSize = 13,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Left
-        }),
-        Utilities:Create("Frame", {
-            Name = "Bar",
-            Size = UDim2.new(1, -20, 0, 4),
-            Position = UDim2.new(0, 10, 0, 28),
-            BackgroundColor3 = Colors.Tertiary
-        }, {
-            Utilities:Create("UICorner", {
-                CornerRadius = UDim.new(1, 0)
-            }),
-            Utilities:Create("Frame", {
-                Name = "Fill",
-                Size = UDim2.new((Info.Default - Info.Min) / (Info.Max - Info.Min), 0, 1, 0),
-                BackgroundColor3 = Colors.Accent
-            }, {
-                Utilities:Create("UICorner", {
-                    CornerRadius = UDim.new(1, 0)
-                })
-            })
-        }),
-        Utilities:Create("TextBox", {
-            Name = "Value",
-            Text = tostring(Info.Default),
-            Size = UDim2.new(0, 50, 0, 20),
-            Position = UDim2.new(1, -60, 0, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = Colors.PrimaryText,
-            TextSize = 13,
-            Font = Enum.Font.GothamBold
-        })
-    })
-    
-    -- Slider Logic
-    local Dragging = false
-    
-    Slider.Bar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Dragging = true
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Dragging = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local X = math.clamp((input.Position.X - Slider.Bar.AbsolutePosition.X) / Slider.Bar.AbsoluteSize.X, 0, 1)
-            local Value = math.floor((Info.Min + (Info.Max - Info.Min) * X) / Info.Increment + 0.5) * Info.Increment
-            
-            library.flags[Info.Flag] = Value
-            Slider.Bar.Fill.Size = UDim2.new((Value - Info.Min) / (Info.Max - Info.Min), 0, 1, 0)
-            Slider.Value.Text = tostring(Value)
-            
-            if Info.Callback then
-                Info.Callback(Value)
-            end
-        end
-    end)
-    
-    return Slider
-end
-
-function SectionTable:Dropdown(Info)
-    Info.Text = Info.Text or "Dropdown"
-    Info.Flag = Info.Flag or Info.Text
-    Info.Default = Info.Default or ""
-    Info.List = Info.List or {}
-    
-    library.flags[Info.Flag] = Info.Default
-    
-    local Dropdown = Utilities:Create("Frame", {
-        Name = "Dropdown",
-        Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = Colors.Secondary,
-        Parent = Section.Container,
-        ClipsDescendants = true
-    }, {
-        Utilities:Create("UICorner", {
-            CornerRadius = UDim.new(0, 6)
-        }),
-        Utilities:Create("TextLabel", {
-            Name = "Title",
-            Text = Info.Text,
-            Size = UDim2.new(1, -10, 0, 32),
-            Position = UDim2.new(0, 10, 0, 0),
-            BackgroundTransparency = 1,
-            TextColor3 = Colors.PrimaryText,
-            TextSize = 13,
-            Font = Enum.Font.GothamBold,
-            TextXAlignment = Enum.TextXAlignment.Left
-        }),
-        Utilities:Create("ImageLabel", {
-            Name = "Arrow",
-            Size = UDim2.new(0, 20, 0, 20),
-            Position = UDim2.new(1, -25, 0, 6),
-            BackgroundTransparency = 1,
-            Image = getcustomasset("PPHUD/Arrow.png"),
-            ImageColor3 = Colors.PrimaryText
-        }),
-        Utilities:Create("Frame", {
-            Name = "Container",
-            Size = UDim2.new(1, -16, 0, 0),
-            Position = UDim2.new(0, 8, 0, 36),
-            BackgroundTransparency = 1
-        }, {
-            Utilities:Create("UIListLayout", {
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Padding = UDim.new(0, 4)
-            })
-        })
-    })
-    
-    -- Dropdown Logic
-    local Open = false
-    
-    local function Toggle()
-        Open = not Open
-        Utilities:Tween(Dropdown.Arrow, 0.2, {Rotation = Open and 180 or 0})
-        Utilities:Tween(Dropdown, 0.2, {Size = UDim2.new(1, 0, 0, Open and (38 + Dropdown.Container.UIListLayout.AbsoluteContentSize.Y) or 32)})
-    end
-    
-    Dropdown.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            Toggle()
-        end
-    end)
-    
-    -- Add Options
-    for _, Option in pairs(Info.List) do
-        local Button = Utilities:Create("TextButton", {
-            Name = Option,
-            Size = UDim2.new(1, 0, 0, 24),
-            BackgroundColor3 = Colors.Tertiary,
-            Text = Option,
-            TextColor3 = Colors.PrimaryText,
-            TextSize = 13,
-            Font = Enum.Font.GothamBold,
-            Parent = Dropdown.Container
-        }, {
-            Utilities:Create("UICorner", {
-                CornerRadius = UDim.new(0, 6)
-            })
-        })
-        
-        Button.MouseButton1Click:Connect(function()
-            library.flags[Info.Flag] = Option
-            Toggle()
-            if Info.Callback then
-                Info.Callback(Option)
-            end
-        end)
-    end
-    
-    return Dropdown
 end
 
 return library 
