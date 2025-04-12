@@ -144,11 +144,16 @@ function library:Window(WindowArgs)
                 TextXAlignment = Enum.TextXAlignment.Left
             }),
             -- Add TabHolder
-            Utilities:Create("Frame", {
+            Utilities:Create("ScrollingFrame", {
                 Name = "TabHolder",
                 Size = UDim2.new(0, 130, 1, -40),
                 Position = UDim2.new(0, 6, 0, 36),
-                BackgroundTransparency = 1
+                BackgroundTransparency = 1,
+                ScrollBarThickness = 0,
+                BorderSizePixel = 0,
+                CanvasSize = UDim2.new(0, 0, 0, 0),
+                ScrollingDirection = Enum.ScrollingDirection.Y,
+                VerticalScrollBarInset = Enum.ScrollBarInset.None
             }, {
                 Utilities:Create("UIListLayout", {
                     SortOrder = Enum.SortOrder.LayoutOrder,
@@ -198,6 +203,11 @@ function library:Window(WindowArgs)
         end
     end)
 
+    -- Update TabHolder Canvas Size
+    WindowTable.TabHolder.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        WindowTable.TabHolder.CanvasSize = UDim2.new(0, 0, 0, WindowTable.TabHolder.UIListLayout.AbsoluteContentSize.Y)
+    end)
+
     -- Tab Creation Function
     function WindowTable:Tab(TabArgs)
         TabArgs = typeof(TabArgs) == "table" and TabArgs or {}
@@ -210,7 +220,8 @@ function library:Window(WindowArgs)
         local TabButton = Utilities:Create("TextButton", {
             Name = "Tab",
             Size = UDim2.new(1, -10, 0, 30),
-            BackgroundColor3 = Colors.Secondary,
+            BackgroundColor3 = self.Tabs == 1 and Colors.Accent or Colors.Secondary,
+            AutoButtonColor = false,
             Parent = self.TabHolder
         }, {
             Utilities:Create("UICorner", {
@@ -280,13 +291,14 @@ function library:Window(WindowArgs)
         
         -- Section Creation Function
         function TabTable:Section(Info)
+            Info = typeof(Info) == "table" and Info or {}
             Info.Text = Info.Text or "Section"
             local SectionTable = {}
             
             -- Create Section Container
             local Section = Utilities:Create("Frame", {
                 Name = "Section",
-                Size = UDim2.new(1, -16, 0, 36),
+                Size = UDim2.new(1, -12, 0, 36),
                 BackgroundColor3 = Colors.Secondary,
                 Parent = TabContainer
             }, {
@@ -628,14 +640,13 @@ function library:Window(WindowArgs)
             
             -- Update Section Size
             Section.Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                Section.Size = UDim2.new(1, -16, 0, Section.Container.UIListLayout.AbsoluteContentSize.Y + 36)
+                Section.Size = UDim2.new(1, -12, 0, Section.Container.UIListLayout.AbsoluteContentSize.Y + 36)
             end)
             
             return SectionTable
         end
         
         if self.Tabs == 1 then
-            Utilities:Tween(TabButton, 0.2, {BackgroundColor3 = Colors.Accent})
             SelectedTab = TabContainer
         end
         
